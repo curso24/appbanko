@@ -1,0 +1,27 @@
+.back {
+    border: 2px solid black; /* Borde negro */
+    background-color: transparent; /* Fondo transparente */
+    color: black; /* Color de texto negro por defecto */
+    padding: 10px 20px; /* Ajusta el padding según tus necesidades */
+    transition: background-color 0.3s, color 0.3s; /* Transición suave */
+    display: block; /* Para que el botón ocupe el ancho máximo disponible */
+    margin: 0 auto; /* Para centrar el botón horizontalmente */
+    text-align: center; /* Para centrar el texto dentro del botón */
+}
+.back:hover {
+    background-color: black; /* Cambia el fondo a negro al pasar el cursor */
+    color: white; /* Cambia el color del texto a blanco al pasar el cursor */
+}
+.timer{
+    display: block; /* Para que el botón ocupe el ancho máximo disponible */
+    margin: 0 auto; /* Para centrar el botón horizontalmente */
+    text-align: center; /* Para centrar el texto dentro del botón */
+    margin-bottom: 2%; /* Para dejar un margen debajo del timer */
+}
+
+
+
+
+
+
+
