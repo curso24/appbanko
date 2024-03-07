@@ -1,82 +1,105 @@
-import React, { useState } from "react";
-import "./App.css";
-import Welcome from "./Componentes/Welcome/Welcome";
-import Login from "./Componentes/Login/Login";
-import Summary from "./Componentes/Summary/Summary";
-import Movements from "./Componentes/Movements/Movements";
-import Balance from "./Componentes/Balance/Balance";
-import CountdownTimer from "./Componentes/CountDown/CountDown";
-
+import React, { useState } from 'react';
+import './App.css';
+import Welcome from './Componentes/Welcome/Welcome';
+import Login from './Componentes/Login/Login';
+import Summary from './Componentes/Summary/Summary';
+import Movements from './Componentes/Movements/Movements';
+import Balance from './Componentes/Balance/Balance';
+import CountdownTimer from './Componentes/CountDown/CountDown';
 function App() {
   const [account, setAccount] = useState({});
   const [token, setToken] = useState();
-
-  //Si no recogemos ningun dato en movimientos, me lo das como un array vacío
-  const { movements = [], owner: user = "" } = account;
-
-  // Función para manejar depósitos
-  const handleDeposit = (amount) => {
-    // Simplemente agregamos una nueva transacción de depósito al array de movimientos
-    const newMovements = [...movements, { type: "deposit", amount }];
-    setAccount({ ...account, movements: newMovements });
-    // Envía la transacción al servidor (puedes usar fetch u otras bibliotecas como axios)
-    sendTransactionToServer({ type: "deposit", amount });
-  };
-
-  // Función para manejar retiros
+  const exampleDate = '2024-03-05T12:00:00'; // La fecha de ejemplo debe ser en formato ISO 8601  //Si no recogemos ningun dato en movimientos, me lo das como un array vacío
+  const { movements = [], owner: user = '' } = account; //Llamada al servidor
+  const sendTransactionToServer = (transaction) => {
+    // Envía la transacción al servidor
+    fetch(`http://localhost:4000/movements?token=${token}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(transaction),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error('Error en la llamada a la API');
+        }
+        return res.json();
+      })
+      .then((response) => {
+        console.log(response, response.status, response.ok);
+        const newMovements = [...movements, transaction];
+        setAccount({ ...account, movements: newMovements });
+      })
+      .catch((error) =>
+        console.error('Error al enviar la transacción:', error)
+      );
+  }; // Función para manejar depósitos
+  const handleDeposit = (amount) =>
+    sendTransactionToServer({
+      type: 'deposit',
+      date: new Date().toISOString(),
+      amount,
+    });
   const handleWithdrawal = (amount) => {
-    //Representa el retiro con un valor negativo
+    const withdrawalAmount = Math.abs(amount);
+    const balance = account.movements.reduce((acc, mov) => acc + mov.amount, 0);
+    console.log(withdrawalAmount, balance);
+    if (withdrawalAmount <= balance) {
+      //Retirar la transacción de retiro
+      sendTransactionToServer({
+        type: 'withdrawal',
+        date: new Date().toISOString(),
+        amount: -withdrawalAmount,
+      });
+      // Actualizar el array de movimientos
+      const newMovements = [
+        ...movements,
+        { type: 'withdrawal', amount: -withdrawalAmount },
+      ]; // Calcular el nuevo balance
+      const newBalance = newMovements.reduce(
+        (acc, movement) => acc + movement.amount,
+        0
+      ); // Actualizar el estado de la cuenta con los nuevos movimientos y saldo
+      setAccount({
+        ...account,
+        movements: newMovements,
+        balance: newBalance,
+      });
+    } else {
+      alert('No tienes suficiente saldo');
+    }
+  }; // Función para manejar transferencias
+  const handleTransfer = (amount, targetAccount) => {
     const withdrawalAmount = -Math.abs(amount);
-    // Simplemente agregamos una nueva transacción de retiro al array de movimientos
+    const depositAmount = Math.abs(amount);
     const newMovements = [
       ...movements,
-      { type: "withdrawal", amount: withdrawalAmount },
-    ];
-    setAccount({ ...account, movements: newMovements });
-    // Envía la transacción al servidor (puedes usar fetch u otras bibliotecas como axios)
-    sendTransactionToServer({ type: "withdrawal", amount: withdrawalAmount });
+      { type: 'withdrawal', amount: withdrawalAmount },
+      { type: 'deposit', amount: depositAmount, targetAccount },
+    ]; // Calcular el nuevo balance sumando todos los montos de los movimientos
+    const newBalance = newMovements.reduce(
+      (acc, movement) => acc + movement.amount,
+      0
+    ); // Actualizar el estado de la cuenta con los nuevos movimientos
+    setAccount({
+      ...account,
+      movements: newMovements,
+    }); // Enviar la transacción al servidor
+    sendTransactionToServer({ type: 'transfer', amount, targetAccount }); // Actualizar el estado del balance después de la transferencia
+    setAccount((prevAccount) => ({
+      ...prevAccount,
+      balance: newBalance,
+    }));
   };
-
-  // Función para manejar transferencias
-    const handleTransfer = (amount, targetAccount) => {
-  const withdrawalAmount = -Math.abs(amount);
-  const depositAmount = Math.abs(amount);
-
-  const newMovements = [
-    ...movements,
-    { type: "withdrawal", amount: withdrawalAmount },
-    { type: "deposit", amount: depositAmount, targetAccount },
-  ];
-
-  // Calcular el nuevo balance sumando todos los montos de los movimientos
-  const newBalance = newMovements.reduce((acc, movement) => acc + movement.amount, 0);
-
-  // Actualizar el estado de la cuenta con los nuevos movimientos
-  setAccount({
-    ...account,
-    movements: newMovements,
-  });
-
-  // Enviar la transacción al servidor
-  sendTransactionToServer({ type: "transfer", amount, targetAccount });
-
-  // Actualizar el estado del balance después de la transferencia
-  setAccount((prevAccount) => ({
-    ...prevAccount,
-    balance: newBalance,
-  }));
-};
-
-  
-
   const handleLogin = (user, pin) => {
     // Aquí realizamos la lógica de autenticación, por ejemplo, enviamos los datos a un servidor.
     // Validamos si el usuario y la contraseña son correctos.
-
     fetch(`http://localhost:4000/login?username=${user}&pin=${pin}`)
       .then((res) => {
         if (!res.ok) {
-          throw new Error("Error en la llamada a la API");
+          throw new Error('Error en la llamada a la API');
         }
         return res.json();
       })
@@ -85,46 +108,19 @@ function App() {
         setToken(datos.token);
         console.log(datos);
       })
-      .catch((error) => console.error(error, "estas con error"));
+      .catch((error) => console.error(error, 'estas con error'));
   };
-
-  const sendTransactionToServer = (transaction) => {
-    // Envía la transacción al servidor
-    fetch("http://localhost:4000/transactions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(transaction),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Error en la llamada a la API");
-        }
-        return res.json();
-      })
-      .then((response) => {
-        console.log("Transacción enviada con éxito:", response);
-      })
-      .catch((error) =>
-        console.error("Error al enviar la transacción:", error)
-      );
-  };
-
   return (
     <>
       <nav>
-        {/* Crear el componente welcome 
+        {/* Crear el componente welcome
             recibe una propiedad que sea el nombre de usuario
             si está vacío muestra "Log in to get started"
             si está lleno muestra "Bienvenido, {nombre de usuario}" */}
-        <Welcome user={user} />
-
+        <Welcome user={user} />{' '}
         {/* Hacer el componente Login -> usar useRef como ya hicimos para hacer el login */}
         <Login onLogin={handleLogin} />
-      </nav>
-
+      </nav>{' '}
       {/*Si existe usuario y, como este dato es verdadero, saca todo lo que se define a continuación*/}
       {user && (
         <main className="app">
@@ -142,7 +138,8 @@ function App() {
             <p>
               <strong>Dirección: </strong> {user.address}
             </p>
-          </div>
+            ""
+          </div>{' '}
           {/* Hacer los movimientos
           recibe una propiedad que es el array de movimientos
           muestra una lista de movimientos que son un componente llamado Movement
@@ -234,8 +231,7 @@ function App() {
               <label className="form__label">Transfer to</label>
               <label className="form__label">Amount</label>
             </form>
-          </div>
-
+          </div>{' '}
           <div className="operation operation--close">
             <h2>Close account</h2>
             <form className="form form--close">
@@ -253,12 +249,9 @@ function App() {
           <p className="logout-timer">
             <CountdownTimer />
           </p>
-
         </main>
       )}
     </>
   );
 }
-
 export default App;
-
